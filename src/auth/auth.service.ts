@@ -1,4 +1,9 @@
-import { ConflictException, Injectable } from '@nestjs/common';
+import {
+  ConflictException,
+  ForbiddenException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { PrismaService } from 'src/prisma/prisma.service';
 import { AuthDto } from './dto/auth.dto';
 import * as argon2 from 'argon2';
@@ -27,7 +32,22 @@ export class AuthService {
     }
   }
 
-  signin() {
-    return { message: 'Sign in' };
+  async signin(authDto: AuthDto) {
+    const user = await this.prisma.user.findUnique({
+      where: {
+        email: authDto.email,
+      },
+    });
+
+    if (!user) {
+      throw new NotFoundException('Email not found');
+    }
+
+    const pwMatches = await argon2.verify(user.password, authDto.password);
+    if (!pwMatches) {
+      throw new ForbiddenException('Password is wrong');
+    }
+
+    return user;
   }
 }
